@@ -1,5 +1,5 @@
-baseURL: "https://examplesite.com/"
-title: ExampleSite
+baseURL: "https://sacckey.dev/"
+title: sacckey.dev
 paginate: 5
 theme: PaperMod
 
@@ -14,22 +14,21 @@ minify:
 
 params:
   env: production # to enable google analytics, opengraph, twitter-cards and schema.
-  title: ExampleSite
-  description: "ExampleSite description"
+  title: sacckey.dev
+  description: "A blog about software development, web development, and other tech-related topics."
   keywords: [Blog, Portfolio, PaperMod]
-  author: Me
-  # author: ["Me", "You"] # multiple authors
-  images: ["<link or path of image for opengraph, twitter-cards>"]
+  author: sacckey
+  images: ["/sacckey.png"]
   DateFormat: "January 2, 2006"
-  defaultTheme: auto # dark, light
+  defaultTheme: auto
   disableThemeToggle: false
 
-  ShowReadingTime: true
-  ShowShareButtons: true
+  ShowReadingTime: false
+  ShowShareButtons: false
   ShowPostNavLinks: true
-  ShowBreadCrumbs: true
-  ShowCodeCopyButtons: false
-  ShowWordCount: true
+  ShowBreadCrumbs: false
+  ShowCodeCopyButtons: true
+  ShowWordCount: false
   ShowRssButtonInSectionTermList: true
   UseHugoToc: true
   disableSpecial1stPost: false
@@ -37,20 +36,20 @@ params:
   comments: false
   hidemeta: false
   hideSummary: false
-  showtoc: false
+  showtoc: true
   tocopen: false
 
   assets:
     # disableHLJS: true # to disable highlight.js
     # disableFingerprinting: true
-    favicon: "<link / abs url>"
-    favicon16x16: "<link / abs url>"
-    favicon32x32: "<link / abs url>"
-    apple_touch_icon: "<link / abs url>"
-    safari_pinned_tab: "<link / abs url>"
+    favicon: "/favicon.ico"
+    favicon16x16: "/favicon-16x16.png"
+    favicon32x32: "/favicon-32x32.png"
+    apple_touch_icon: "/apple-touch-icon.png"
+    # safari_pinned_tab: "/safari-pinned-tab.svg"
 
   label:
-    text: "Home"
+    text: "sacckey.dev"
     icon: /apple-touch-icon.png
     iconHeight: 35
 
@@ -71,16 +70,14 @@ params:
 
   # home-info mode
   homeInfoParams:
-    Title: "Hi there \U0001F44B"
-    Content: Welcome to my blog
+    Title: "sacckey.dev"
+    Content: A blog about software development, web development, and other tech-related topics.
 
   socialIcons:
     - name: x
-      url: "https://x.com/"
-    - name: stackoverflow
-      url: "https://stackoverflow.com"
+      url: "https://x.com/sacckey"
     - name: github
-      url: "https://github.com/"
+      url: "https://github.com/sacckey"
 
   analytics:
     google:
@@ -96,7 +93,7 @@ params:
     hiddenInSingle: true # hide on single page
 
   editPost:
-    URL: "https://github.com/<path_to_repo>/content"
+    URL: "https://github.com/sacckey/sacckey.dev/blob/main/content"
     Text: "Suggest Changes" # edit text
     appendFilePath: true # to append file path to Edit link
 
@@ -113,18 +110,22 @@ params:
     keys: ["title", "permalink", "summary", "content"]
 menu:
   main:
-    - identifier: categories
-      name: categories
-      url: /categories/
-      weight: 10
-    - identifier: tags
-      name: tags
-      url: /tags/
-      weight: 20
-    - identifier: example
-      name: example.org
-      url: https://example.org
-      weight: 30
+      - identifier: posts
+        name: Posts
+        url: /posts/
+        weight: 1
+    # - identifier: archives
+    #   name: archives
+    #   url: /archives/
+    #   weight: 1
+    # - identifier: categories
+    #   name: categories
+    #   url: /categories/
+    #   weight: 10
+    # - identifier: tags
+    #   name: tags
+    #   url: /tags/
+    #   weight: 20
 # Read: https://github.com/adityatelange/hugo-PaperMod/wiki/FAQs#using-hugos-syntax-highlighter-chroma
 pygmentsUseClasses: true
 markup:
@@ -135,3 +136,7 @@ markup:
     # guessSyntax: true
     # lineNos: true
     # style: monokai
+
+  goldmark:
+    renderer:
+      unsafe: true
