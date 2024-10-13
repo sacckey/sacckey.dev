@@ -1,0 +1,10 @@
+{{ $url := .Get 0 }}
+{{ $parsedURL := urls.Parse $url }}
+{{ $pathParts := split $parsedURL.Path "/" }}
+{{ $username := index $pathParts 1 }}
+{{ $repo := index $pathParts 2 }}
+<p>
+  <a href="{{ $url }}" target="_blank" rel="noopener noreferrer" style="display: block; background-color:#fff; border: 1px solid #e4e2e2; border-radius: 4.5px; box-shadow: 0 0;">
+    <img loading="lazy" src="https://github-readme-stats.vercel.app/api/pin/?username={{ $username }}&repo={{ $repo }}&show_owner=true&hide_border=true" alt="{{ $repo }} by {{ $username }}" style="margin: 0;">
+  </a>
+</p>
