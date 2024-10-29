@@ -17,18 +17,18 @@ I created a Game Boy emulator in Ruby and released it as a gem called rubyboy!
 
 ## This Article
 While explaining the implementation process of Ruby Boy, I'll introduce the points where I got stuck and the techniques I devised.
-I'll also introduce what I did to speed up Ruby Boy.
+I'll also introduce what I did to optimize Ruby Boy.
 
 ## Why I Created a Game Boy Emulator
 - I wanted to do some personal development, but since web services incur maintenance costs, I wanted to create something that could be maintained for free
 - As I use Ruby for work, I had been wanting to create a Ruby gem for a while
-- Developing a game emulator has "clear goals & is fun when it works", so it seemed easier to maintain motivation
+- Developing a game emulator has "clear goals & is fun when it works", so it seemed like it would be easier to maintain motivation
   - In particular, I have a special attachment to the Game Boy
 
 → Let's create a Game Boy emulator in Ruby and release it as a gem!
 
 ## Emulator Overview
-The following is the architecture of the Game Boy:
+The following image is the architecture of the Game Boy:
 <p align="center">
   <img src="https://storage.googleapis.com/zenn-user-upload/2a6af06959a6-20240408.png" width="500">
   <em>"Game Boy / Color Architecture - A Practical Analysis" by Rodrigo Copetti, Published: February 21, 2019, Last Modified: January 9, 2024. Available at: https://www.copetti.org/writings/consoles/game-boy/. Licensed under Creative Commons Attribution 4.0 International License.</em>
@@ -121,19 +121,18 @@ To maintain motivation, instead of implementing all CPU and PPU processes at onc
 
 For debugging, I used a Game Boy emulator called [BGB](https://bgb.bircd.org/). It's useful because you can execute step by step while displaying register and memory information, allowing you to compare the behavior with your own CPU.
 
-I checked the instructions executed in BGB and implemented them.
-For the PPU, creating just the bg rendering process is enough to make the test run.
+I checked the required CPU instructions using BGB and implemented them. Then, implementing the PPU's bg rendering process will make the test pass.
 <p align="center">
  <img src="https://storage.googleapis.com/zenn-user-upload/a05ad4a1c905-20240330.png" width="500">
 </p>
 
-Next, I implemented all instructions and interrupt handling, aiming to pass the tests of CPU test ROMs called [cpu_instrs](https://github.com/retrio/gb-test-roms/tree/master/cpu_instrs/) and [instr_timing](https://github.com/retrio/gb-test-roms/tree/master/instr_timing).
+Next, I implemented all instructions and interrupt handling, aiming to pass two CPU test ROMs: [cpu_instrs](https://github.com/retrio/gb-test-roms/tree/master/cpu_instrs/) and [instr_timing](https://github.com/retrio/gb-test-roms/tree/master/instr_timing).
 
 #### Points Where I Got Stuck
-- When setting the value of f in pop af, I hadn't set the lower 4 bits to 0000
- - The lower 4 bits of the f register are always 0000
-- The calculation method for the c flag in instructions with opcode=0xe8, 0xf8 was incorrect
- - It passed with cflag = (@sp & 0xff) + (byte & 0xff) > 0xff
+- When setting the value of f in `pop af`, I hadn't set the lower 4 bits to 0000
+  - The lower 4 bits of the f register are always 0000
+- The c flag calculation was incorrect for two CPU instructions (opcode=0xe8, 0xf8): `ADD SP, e8` and `LD HL, SP + e8`.
+  - It passed with `cflag = (@sp & 0xff) + (byte & 0xff) > 0xff`
 
 By fixing these, it successfully passed.
 <p align="center">
@@ -145,13 +144,13 @@ By fixing these, it successfully passed.
 ### PPU
 I aimed to implement the remaining rendering processes and pass [dmg-acid2](https://github.com/mattcurrie/dmg-acid2), which is a test ROM for PPU.
 
-The test passes when window and sprite rendering, interrupt handling, and DMA transfer are implemented.
+The test will pass by implementing window and sprite rendering, interrupt handling, and DMA transfer.
 Care must be taken with the priority of sprite display.
 <p align="center">
  <img src="https://storage.googleapis.com/zenn-user-upload/92f2cf1d5e93-20240414.png" width="500">
 </p>
 
-Now that rendering is possible, implementing the Joypad will allow us to run games.
+Now that rendering is possible, implementing the Joypad will make games playable.
 The following is a video of running a game called [Tobu Tobu Girl](https://tangramgames.dk/tobutobugirl/):
 
 <blockquote data-align="center" class="twitter-tweet" data-media-max-width="560"><p lang="ja" dir="ltr">Tobu Tobu Girl動いた！<br>30fpsぐらいしか出ていないので、最適化する <a href="https://t.co/szPtv3F37R">pic.twitter.com/szPtv3F37R</a></p>&mdash; sacckey (@sacckey) <a href="https://twitter.com/sacckey/status/1727284351371796791?ref_src=twsrc%5Etfw">November 22, 2023</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
@@ -160,8 +159,8 @@ At this point, the game became operational! However, it's extremely slow.
 From here on, I worked on optimization.
 
 ## Optimization
-I'll introduce what I did to speed up Ruby Boy.
-These techniques are not limited to emulator implementation and can be applied to optimizing Ruby programs in general.
+I'll introduce what I did to optimize Ruby Boy.
+These techniques are not limited to emulator implementation and are likely applicable for improving the performance of Ruby programs in general.
 
 Execution environment:
 - PC: MacBook Pro (13-inch, 2018)
@@ -173,7 +172,7 @@ I measured the time it took to execute the first 1500 frames of Tobu Tobu Girl w
 Since benchmarking will be done repeatedly, I recommend preparing a dedicated program and setting up a system where you can start benchmarking immediately with a command execution.
 
 ### Profiler
-I used a gem called Stackprof.
+I used the Stackprof gem.
 
 {{< github-repo-card "https://github.com/tmm1/stackprof" >}}
 
@@ -203,7 +202,7 @@ FPS: 46.73385499531633
 FPS: 41.1385591742566 → 46.73385499531633
 
 #### Avoid Creating a Hash for Sprites Every Time
-When running Stackprof, we can see that the render_sprites method is becoming a bottleneck.
+According to Stackprof results, the render_sprites method is becoming a bottleneck.
 
 ```
 ==================================
@@ -255,22 +254,22 @@ By modifying this to create sprite only when the conditions are met, the speed i
 
 FPS: 46.73385499531633 → 49.2233733053377
 
-In this way, we continue to diligently identify and fix bottlenecks.
+In this way, I steadily continued to identify and fix bottlenecks.
 
-#### Refactoring PPU
-This is a basic principle of "do outside the loop what can be done outside the loop",
-but it's critically important in emulators, and resolving this dramatically improves performance.
-
-##### Calculate tile_map_addr outside the loop
+#### Calculate tile_map_addr outside the loop
 [commit](https://github.com/sacckey/rubyboy/commit/08273596838631334ee83fbd540feab5da09233e)
+
 FPS: 49.2233733053377 → 56.6580741129914
 
-##### Calculate tile_index outside the loop
+#### Calculate tile_index outside the loop
 [commit](https://github.com/sacckey/rubyboy/commit/3e79628cf69f15bc690049f1695e3767ae48e8a9)
+
 FPS: 56.6580741129914 → 60.44140113483162
 
+These are based on the basic principle "do outside the loop what can be done outside the loop", but it's critically important for emulators. Resolving these issues dramatically improved performance.
+
 #### Ruby v3.2 -> v3.3
-At this point, we achieved about 60 FPS without rendering, but we hit a wall.
+At this point, Ruby Boy achieved about 60 FPS without rendering, but hit a wall.
 There's a trade-off between optimization and code readability. For example, abandoning the use of constants and directly writing mysterious integers would make it faster, but that's not desirable.
 
 While pondering this, Ruby 3.3.0 was released on 2023/12/25.
@@ -285,7 +284,7 @@ Ruby 3.3 was faster than I imagined. Thank you so much 🙏
 By the way, this [comparison post](https://twitter.com/sacckey/status/1740342734857306595) was even reposted by Matz. I'm thrilled.
 
 ### Reducing GC
-Thanks to Ruby 3.3, we achieved higher speed, but in exchange? the number of GC occurrences increased significantly.
+Thanks to Ruby 3.3, performance improved significantly, but in exchange? GC occurrences increased dramatically.
 
 ```
 rubyboy % stackprof stackprof-cpu-myapp.dump
@@ -313,7 +312,7 @@ rubyboy % stackprof stackprof-cpu-myapp.dump
 ...
 ```
 
-Also, the operation from the title screen to the professor's dialogue scene in Pokemon Red was still heavy, so resolving these issues became the next goal.
+Also, in Pokemon Red, the performance from the title screen to the professor's dialogue scene was still heavy, so resolving these issues became the next goal.
 
 #### GC Profiler
 I used HeapProfiler to detect GC occurrence locations.
@@ -369,10 +368,9 @@ retained objects by file
         18  rubyboy/lib/rubyboy/apu.rb
 ```
 
-Looking at this, we can see that creating a large number of Hashes within the Cpu class is the cause of GC occurrences.
+Looking at this, it is clear that creating a large number of Hashes within the Cpu class is the cause of GC occurrences.
 
-#### Reduce Hash generation within the Cpu class
-##### Change instruction arguments from Hash to Symbol
+#### Change instruction arguments from Hash to Symbol
 [commit](https://github.com/sacckey/rubyboy/commit/7cc25746dffcc91e9f6ad4162ec279e8547b9fe0)
 
 ```diff ruby
@@ -381,7 +379,7 @@ case opcode
 +  when 0x01 then ld16(:bc, :immediate16, cycles: 12)
 ```
 
-##### Avoid creating Hash when referencing flags
+#### Avoid creating Hash when referencing flags
 [commit](https://github.com/sacckey/rubyboy/commit/947617508e726716b3905d41df1f4a4c1b5793c8)
 
 ```diff ruby
@@ -412,7 +410,7 @@ case opcode
 + end
 ```
 
-With these modifications, we were able to reduce GC occurrences to 2.71%.
+With these modifications, GC occurrences were reduced to 2.71%.
 
 ### Optimization Part 2
 #### Reducing Integer#<=>
@@ -455,7 +453,7 @@ FPS: 55.97272441676141
 ...
 ```
 
-While GC has been reduced, we're not achieving 60 FPS, and we can see that `Integer#<=>` (number comparison) has become a bottleneck.
+While GC has been reduced, performance is still below 60 FPS, and `Integer#<=>` (number comparison) appears to be the bottleneck.
 Number comparisons occur frequently in address-based branching like the following:
 ```ruby
 def read_byte(addr)
@@ -526,7 +524,7 @@ rubyboy % bundle exec stackprof stackprof-cpu-myapp.dump
 ```
 
 The FPS improved from 55.97272441676141 to 68.95255099156066, and the proportion of `Integer#<=>` was reduced from 21.8% to 0.5%.
-There's still room for further optimization, but since we've achieved our goal, I'm considering this complete for now.
+There's still room for further optimization, but having achieved the goal, I'm considering this complete for now.
 
 ### Optimization Results
 
@@ -542,7 +540,7 @@ As initially planned, I was able to implement while having fun. While it's enjoy
 Also, I'm happy that I could run the cartridges that were lying dormant at my parents' home.
 
 #### Published a Ruby Gem
-I've been writing Ruby for a while, and I'm glad I could finally publish a properly functioning gem.
+Having used Ruby for a while, I'm happy to finally publish a working gem.
 https://rubygems.org/gems/rubyboy
 
 Install it now with `gem install rubyboy`!
@@ -561,7 +559,7 @@ I hadn't written many large programs outside of web programming, so it was good 
 - Delighted by the many thoughtful methods!
 - Pleased with the abundance of useful gems!
 - Frustrated by the slow processing speed!
-   - Glad that it's significantly faster than before thanks to YJIT's evolution!
+  - Glad that it's significantly faster than before thanks to YJIT's evolution!
 
 ### Future Plans
 I'm planning to work on the following:
@@ -570,7 +568,7 @@ I'm planning to work on the following:
 - Supporting Game Boy Color
 - WebAssembly support
 - Improving the benchmark system
- - Want to make it usable as a benchmark program for Ruby
+  - Want to make it usable as a benchmark program for Ruby
 
 ## References
 ### Self-Made Blog Posts
