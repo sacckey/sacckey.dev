@@ -574,11 +574,11 @@ I'm planning to work on the following:
 ### Self-Made Blog Posts
 These are articles about creating Game Boy emulators. I referred to them for implementation approaches, techniques, and potential pitfalls 🙏
 
+- [Writing a Game Boy Emulator in OCaml](https://linoscope.github.io/writing-a-game-boy-emulator-in-ocaml/)
 - [C++でゲームボーイエミュレータを自作しています | voidProc | ゲーム製作ログ](https://voidproc.com/blog/archives/664)
 - [Rustでゲームボーイエミュレータを自作した話 - MJHD](https://mjhd.hatenablog.com/entry/2021/04/14/221813)
 - [ゲームボーイのエミュレータを自作した話 · Keichi Takahashi](https://keichi.dev/post/write-yourself-a-game-boy-emulator/)
 - [AQBoy: Yet Another Game Boy Emulator 開発記 - HackMD](https://hackmd.io/@anqou/HJcvRrwy9)
-- [OCaml でゲームボーイエミュレータを書いた話 #関数型言語 - Qiita](https://qiita.com/linoscope/items/244d931aaae07df2c27e)
 
 ### Presentation Slides
 - [Ruby で高速なプログラムを書く | PPT](https://www.slideshare.net/mametter/ruby-65182128)
