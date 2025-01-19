@@ -532,6 +532,39 @@ There's still room for further optimization, but having achieved the goal, I'm c
 |---|---|
 |![](https://storage.googleapis.com/zenn-user-upload/b29a44007817-20240416.gif)|![](https://storage.googleapis.com/zenn-user-upload/6dff7cf43943-20240416.gif)|
 
+### Optimization Part 3
+I had considered the optimization complete, but when I tried it in the browser with ruby.wasm, it turned out to be slow, so I decided to optimize further.
+
+For benchmarking, I used the same method as in Part 1: measuring the time to execute the first 1500 frames of Tobu Tobu Girl three times, without audio and rendering. Here are the current benchmark results:
+
+```
+rubyboy % RUBYOPT=--yjit bundle exec rubyboy-bench
+Ruby: 3.3.0
+YJIT: true
+1: 11.963271 sec
+2: 11.610802 sec
+3: 11.64308 sec
+FPS: 127.77864241325811
+```
+
+In the current implementation, frame data is generated pixel by pixel during rendering. This causes significant overhead.
+To address this, I modified the implementation to generate frame data when VRAM is updated and cache it. During rendering, it just needs to reference the cached data.
+
+I also focused on other performance bottlenecks: optimizing the render_bg method and changing the pixel format of the frame data.
+
+These optimizations achieved more than a 2x speedup!
+Here are the optimizations and FPS changes (details omitted):
+
+- Cache tile data ([commit](https://github.com/sacckey/rubyboy/commit/6eb4f77fd1cf23ade795da92a2eac0857a0f31fc)) → 133FPS
+- Cache tile_map data ([commit](https://github.com/sacckey/rubyboy/commit/99a24a0706e83d785f65b39aebbe85932ebe56a5)) → 151FPS
+- Cache palette data ([commit](https://github.com/sacckey/rubyboy/commit/2eea5261743c8846364ddb1651b45495863c9298)) → 159FPS
+- Cache sprite data ([commit](https://github.com/sacckey/rubyboy/commit/eb1a23efbafe1e2bc53bd573a3270dff55838dc9)) → 185FPS
+- Change pixel format from RGB24 to ABGR8888 ([commit](https://github.com/sacckey/rubyboy/commit/d898688845c09e3ce7f6ae1ed1f303d8d8e8ef24)) → 219FPS
+- Optimize render_bg with tile-based processing ([commit](https://github.com/sacckey/rubyboy/commit/50e7ccdd15d1043ef021cbda597a0edf305e5b92)) → 263FPS
+- Use reverse and sort for sprite ordering ([commit](https://github.com/sacckey/rubyboy/commit/731794d73e81a0312c14865dea4de6f5cf210ac2)) → 274FPS
+
+#### Results
+FPS: 127.77864241325811 → 274.6885154318787
 
 ## Conclusion
 ### Positive Aspects
