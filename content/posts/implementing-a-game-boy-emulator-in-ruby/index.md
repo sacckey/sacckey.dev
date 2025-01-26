@@ -783,8 +783,7 @@ I hadn't written many large programs outside of web programming, so it was good 
 I'm planning to work on the following:
 - Fixing rendering bugs
 - Adding more MBC types
-- Supporting Game Boy Color
-- WebAssembly support
+- ~~WebAssembly support~~
 - Improving the benchmark system
   - Want to make it usable as a benchmark program for Ruby
 
