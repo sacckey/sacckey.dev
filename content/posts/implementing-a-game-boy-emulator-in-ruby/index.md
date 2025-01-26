@@ -700,6 +700,7 @@ Next, I'll explain the processing details of worker.js and rubyboy.wasm in the l
 
 #### VM Initialization
 ```js:worker.js
+// worker.js
 import { DefaultRubyVM } from 'https://cdn.jsdelivr.net/npm/@ruby/wasm-wasi@2.7.0/dist/browser/+esm';
 
 const response = await fetch('./rubyboy.wasm');
@@ -723,6 +724,7 @@ We use this Map to send ROM data to the VM and receive frame data from the VM.
 
 #### Drawing the Game Screen
 ```js:worker.js
+// worker.js
 sendPixelData() {
   this.vm.eval(`$executor.exec(${this.directionKey}, ${this.actionKey})`);
   const file = this.rootDir.contents.get('video.data');
@@ -738,6 +740,7 @@ Repeating this process draws the game screen.
 The implementation of Ruby Boy's `Executor#exec` is below:
 
 ```ruby:executor.rb
+# executor.rb
 def exec(direction_key = 0b1111, action_key = 0b1111)
   bin = @emulator.step(direction_key, action_key).pack('V*')
   File.binwrite('/video.data', bin)
