@@ -10,14 +10,26 @@ I created a Game Boy emulator in Ruby and released it as a gem called rubyboy!
 
 {{< github-repo-card "https://github.com/sacckey/rubyboy" >}}
 
+And now it runs in the browser using WebAssembly!
+
+**[Try the demo in your browser!](https://sacckey.github.io/rubyboy/)**
+
+### Screenshots
+
 |![](https://raw.githubusercontent.com/sacckey/rubyboy/main/resource/screenshots/pokemon.png)|![](https://raw.githubusercontent.com/sacckey/rubyboy/main/resource/screenshots/puyopuyo.png)|
 |---|---|
 
 <blockquote data-align="center" class="twitter-tweet" data-media-max-width="560"><p lang="ja" dir="ltr">Rubyでゲームボーイのエミュレータを作りました！<br>カラー対応やWasmでブラウザ対応もやっていきたい💪<br><br>GitHub: <a href="https://t.co/hFwmZD6FNp">https://t.co/hFwmZD6FNp</a> <a href="https://t.co/qWbx8v4mef">pic.twitter.com/qWbx8v4mef</a></p>&mdash; sacckey (@sacckey) <a href="https://twitter.com/sacckey/status/1769334370102587629?ref_src=twsrc%5Etfw">March 17, 2024</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
+<p align="center">
+ <img src="https://storage.googleapis.com/zenn-user-upload/04b2e5fb8827-20250115.png" width="500">
+</p>
+
 ## This Article
 While explaining the implementation process of Ruby Boy, I'll introduce the points where I got stuck and the techniques I devised.
 I'll also introduce what I did to optimize Ruby Boy.
+
+Finally, I'll show how Ruby Boy works in the browser using WebAssembly.
 
 ## Why I Created a Game Boy Emulator
 - I wanted to do some personal development, but since web services incur maintenance costs, I wanted to create something that could be maintained for free
@@ -532,6 +544,224 @@ There's still room for further optimization, but having achieved the goal, I'm c
 |---|---|
 |![](https://storage.googleapis.com/zenn-user-upload/b29a44007817-20240416.gif)|![](https://storage.googleapis.com/zenn-user-upload/6dff7cf43943-20240416.gif)|
 
+### Optimization Part 3
+I had considered the optimization complete, but when I tried it in the browser with ruby.wasm, it turned out to be slow, so I decided to optimize further.
+
+For benchmarking, I used the same method as in Part 1: measuring the time to execute the first 1500 frames of Tobu Tobu Girl three times, without audio and rendering. Here are the current benchmark results:
+
+```
+rubyboy % RUBYOPT=--yjit bundle exec rubyboy-bench
+Ruby: 3.3.0
+YJIT: true
+1: 11.963271 sec
+2: 11.610802 sec
+3: 11.64308 sec
+FPS: 127.77864241325811
+```
+
+In the current implementation, frame data is generated pixel by pixel during rendering. This causes significant overhead.
+To address this, I modified the implementation to generate frame data when VRAM is updated and cache it. During rendering, it just needs to reference the cached data.
+
+I also focused on other performance bottlenecks: optimizing the render_bg method and changing the pixel format of the frame data.
+
+These optimizations achieved more than a 2x speedup!
+Here are the optimizations and FPS changes (details omitted):
+
+- Cache tile data ([commit](https://github.com/sacckey/rubyboy/commit/6eb4f77fd1cf23ade795da92a2eac0857a0f31fc)) → 133FPS
+- Cache tile_map data ([commit](https://github.com/sacckey/rubyboy/commit/99a24a0706e83d785f65b39aebbe85932ebe56a5)) → 151FPS
+- Cache palette data ([commit](https://github.com/sacckey/rubyboy/commit/2eea5261743c8846364ddb1651b45495863c9298)) → 159FPS
+- Cache sprite data ([commit](https://github.com/sacckey/rubyboy/commit/eb1a23efbafe1e2bc53bd573a3270dff55838dc9)) → 185FPS
+- Change pixel format from RGB24 to ABGR8888 ([commit](https://github.com/sacckey/rubyboy/commit/d898688845c09e3ce7f6ae1ed1f303d8d8e8ef24)) → 219FPS
+- Optimize render_bg with tile-based processing ([commit](https://github.com/sacckey/rubyboy/commit/50e7ccdd15d1043ef021cbda597a0edf305e5b92)) → 263FPS
+- Use reverse and sort for sprite ordering ([commit](https://github.com/sacckey/rubyboy/commit/731794d73e81a0312c14865dea4de6f5cf210ac2)) → 274FPS
+
+#### Results
+FPS: 127.77864241325811 → 274.6885154318787
+
+## Works in browser with ruby.wasm
+I made Ruby Boy run in the browser using WebAssembly!
+
+**[Try the demo in your browser!](https://sacckey.github.io/rubyboy/)**
+
+<p align="center">
+ <img src="https://storage.googleapis.com/zenn-user-upload/04b2e5fb8827-20250115.png" width="500">
+</p>
+
+In this chapter, I explain how Ruby Boy runs in the browser. It should also be helpful for people who want to run Ruby programs in the browser.
+
+### System Overview
+I referenced the implementation of [optcarrot.wasm](https://github.com/kateinoigakukun/optcarrot.wasm), which runs [Optcarrot](https://github.com/mame/optcarrot) (a NES emulator written in Ruby) using Wasm.
+
+```
++----------------+       DOM Events           +----------------+
+|   index.html   |     (Keyboard & ROM)       |    index.js    |
+|   (Browser)    |--------------------------->| (Main Thread)  |
+|                |<---------------------------|                |
+|                |   Frame Data (ImageData)   |                |
++----------------+                            +----------------+
+                                                     |  ^
+                                                     |  |
+                                            Keyboard |  |  Frame Data
+                                              States |  |  (ArrayBuffer)
+                                                     v  |
++----------------+                            +----------------+
+|  rubyboy.wasm  |      Keyboard States       |   worker.js    |
+| (GB Emulator)  |<---------------------------| (Game Thread)  |
+|                |--------------------------->|                |
+|                |  Frame Data (Uint8Array)   |                |
++----------------+                            +----------------+
+```
+
+- index.js: Main thread. Sends keyboard input and ROM file input to the Worker, and updates canvas with frame data received from the Worker.
+- worker.js: Worker thread. Processes input events from the main thread, runs Ruby Boy and sends frame data to the main thread.
+- rubyboy.wasm: Ruby Boy packaged as Wasm. Emulates the Game Boy and generates frame data.
+
+### Converting Ruby Boy to Wasm
+Converting a Ruby Program to a Wasm package consists of two steps:
+
+1. Build CRuby to Wasm to create ruby.wasm. (Dependent gems are installed during the build process.)
+2. Pack Ruby Program into ruby.wasm to create a program-specific wasm.
+
+The following diagram illustrates these steps:
+
+```
++--------------+
+|    gems      |   build
+|     +        | --------->> ruby.wasm ─┐
+|    CRuby     |                         |
++--------------+                         |   pack
+                                         + -------->> ruby_with_program.wasm
++--------------+                         |
+| Ruby Program | -----------------------┘
++--------------+
+```
+
+These build and pack operations are performed using the ruby_wasm gem.
+
+The ruby_wasm gem, js gem (mentioned later), npm packages, and pre-built binaries are available in the following repository:
+
+{{< github-repo-card "https://github.com/ruby/ruby.wasm" >}}
+
+
+#### Building
+Using the ruby_wasm gem to create a wasm file that includes dependent gems.
+For browser execution, the js gem is also required and should be installed alongside.
+
+```
+$ bundle add ruby_wasm js
+$ bundle exec rbwasm build --ruby-version 3.3 -o ruby-js.wasm
+```
+
+##### Tips: Building only required gems
+When running `rbwasm build`, all dependent gems in `Gemfile.lock` are built.
+To exclude unnecessary gems like rspec or rubocop from the build, specify them in `RubyWasm::Packager::EXCLUDED_GEMS` and execute the command directly.
+
+For Ruby Boy, only the js gem is needed, so adding all other gems to `EXCLUDED_GEMS` as follows:
+
+```ruby
+require 'bundler/setup'
+require 'ruby_wasm'
+require 'ruby_wasm/cli'
+
+# Exclude all gems except the 'js' gem for packaging
+definition = Bundler.definition
+excluded_gems = definition.resolve.materialize(definition.requested_dependencies).map(&:name)
+excluded_gems -= %w[js]
+RubyWasm::Packager::EXCLUDED_GEMS.concat(excluded_gems)
+
+command = %w[build --ruby-version 3.3 -o ./docs/ruby-js.wasm]
+RubyWasm::CLI.new(stdout: $stdout, stderr: $stderr).run(command)
+```
+
+Reference: https://speakerdeck.com/lnit/matrk11-ruby-wasm-msw?slide=73
+
+#### Packing
+Pack the Ruby Boy code into the previously created ruby-js.wasm.
+
+```
+# Pack Ruby Boy code located in ./lib
+$ bundle exec rbwasm pack ruby-js.wasm --dir ./lib::/lib -o rubyboy.wasm
+```
+
+Now that rubyboy.wasm is complete, let's run it in the browser.
+
+### Running in Browser
+System Architecture (revisited)
+
+```
++----------------+       DOM Events           +----------------+
+|   index.html   |     (Keyboard & ROM)       |    index.js    |
+|   (Browser)    |--------------------------->| (Main Thread)  |
+|                |<---------------------------|                |
+|                |   Frame Data (ImageData)   |                |
++----------------+                            +----------------+
+                                                     |  ^
+                                                     |  |
+                                            Keyboard |  |  Frame Data
+                                              States |  |  (ArrayBuffer)
+                                                     v  |
++----------------+                            +----------------+
+|  rubyboy.wasm  |      Keyboard States       |   worker.js    |
+| (GB Emulator)  |<---------------------------| (Game Thread)  |
+|                |--------------------------->|                |
+|                |  Frame Data (Uint8Array)   |                |
++----------------+                            +----------------+
+```
+
+Next, I'll explain the processing details of worker.js and rubyboy.wasm in the lower part.
+
+#### VM Initialization
+```js:worker.js
+// worker.js
+import { DefaultRubyVM } from 'https://cdn.jsdelivr.net/npm/@ruby/wasm-wasi@2.7.0/dist/browser/+esm';
+
+const response = await fetch('./rubyboy.wasm');
+const module = await WebAssembly.compileStreaming(response);
+const { vm, wasi } = await DefaultRubyVM(module);
+vm.eval(`
+  require 'js'
+  require_relative 'lib/executor'
+
+  $executor = Executor.new
+`);
+
+this.vm = vm;
+this.rootDir = wasi.fds[3].dir;
+```
+
+Inside the Worker, we create a VM by passing rubyboy.wasm to the DefaultRubyVM method. Ruby Boy code runs on this VM.
+
+`wasi.fds[3].dir` is a Map that represents the root directory [preopened](https://github.com/ruby/ruby.wasm/blob/main/packages/npm-packages/ruby-wasm-wasi/src/browser.ts#L25) by DefaultRubyVM.
+We use this Map to send ROM data to the VM and receive frame data from the VM.
+
+#### Drawing the Game Screen
+```js:worker.js
+// worker.js
+sendPixelData() {
+  this.vm.eval(`$executor.exec(${this.directionKey}, ${this.actionKey})`);
+  const file = this.rootDir.contents.get('video.data');
+  const bytes = file.data;
+
+  postMessage({ type: 'pixelData', data: bytes.buffer }, [bytes.buffer]);
+}
+```
+
+The Worker executes Ruby Boy's `Executor#exec` on the VM, reads the frame data written to /video.data, and posts it to index.js. index.js updates the canvas with the received frame data.
+Repeating this process draws the game screen.
+
+The implementation of Ruby Boy's `Executor#exec` is below:
+
+```ruby:executor.rb
+# executor.rb
+def exec(direction_key = 0b1111, action_key = 0b1111)
+  bin = @emulator.step(direction_key, action_key).pack('V*')
+  File.binwrite('/video.data', bin)
+end
+```
+
+The exec method receives current button inputs (direction keys, A, B, Start, Select), emulates the Game Boy, and writes frame data to /video.data.
+
+In Ruby Boy, frame data is managed as a Uint32 array in ABGR format like `[0xff555555]`, converting this using `.pack('V*')` to a Uint8 array in RGBA format like `[0x55, 0x55, 0x55, 0xff]` for canvas use.
 
 ## Conclusion
 ### Positive Aspects
@@ -565,8 +795,7 @@ I hadn't written many large programs outside of web programming, so it was good 
 I'm planning to work on the following:
 - Fixing rendering bugs
 - Adding more MBC types
-- Supporting Game Boy Color
-- WebAssembly support
+- ~~WebAssembly support~~
 - Improving the benchmark system
   - Want to make it usable as a benchmark program for Ruby
 
@@ -574,7 +803,7 @@ I'm planning to work on the following:
 ### Self-Made Blog Posts
 These are articles about creating Game Boy emulators. I referred to them for implementation approaches, techniques, and potential pitfalls 🙏
 
-- [Writing a Game Boy Emulator in OCaml](https://linoscope.github.io/writing-a-game-boy-emulator-in-ocaml/)
+- [Writing a Game Boy Emulator in OCaml - The Linoscope Machine](https://linoscope.github.io/writing-a-game-boy-emulator-in-ocaml/)
 - [C++でゲームボーイエミュレータを自作しています | voidProc | ゲーム製作ログ](https://voidproc.com/blog/archives/664)
 - [Rustでゲームボーイエミュレータを自作した話 - MJHD](https://mjhd.hatenablog.com/entry/2021/04/14/221813)
 - [ゲームボーイのエミュレータを自作した話 · Keichi Takahashi](https://keichi.dev/post/write-yourself-a-game-boy-emulator/)
@@ -591,3 +820,11 @@ These are articles about creating Game Boy emulators. I referred to them for imp
   - CPU specification table. It displays a list of each instruction's content, opcode, cycle count, and updated flags, and also provides JSON. I implemented CPU instructions while referring to this.
 - [Rustで作るGAME BOYエミュレータ：低レイヤ技術部](https://techbookfest.org/product/sBn8hcABDYBMeZxGvpWapf?productVariantID=2q95kwuw4iuRAkJea4BnKT)
   - A book about implementing a Game Boy emulator in Rust. It sets goals for each chapter, allowing for step-by-step progress. The explanations for each chapter are quite detailed, and it's recommended even if you're implementing in a language other than Rust. It was especially helpful for implementing PPU and APU.
+
+### ruby.wasm
+I referenced the following articles and implementations for WebAssembly support:
+
+- [First steps with ruby.wasm: or how we built Ruby Next Playground—Martian Chronicles, Evil Martians’ team blog](https://evilmartians.com/chronicles/first-steps-with-ruby-wasm-or-building-ruby-next-playground)
+- [kateinoigakukun/optcarrot.wasm: A NES emulator written in Ruby on browser powered by WebAssembly](https://github.com/kateinoigakukun/optcarrot.wasm)
+- [https://speakerdeck.com/lnit/matrk11-ruby-wasm-msw](https://speakerdeck.com/lnit/matrk11-ruby-wasm-msw)
+- [Wasmで少しだけ手軽にRubyとRubyスクリプトを持ち運ぶ (2024-05-25) | あーありがち](https://aligach.net/diary/2024/0525/pack-ruby-script-with-wasm/)
