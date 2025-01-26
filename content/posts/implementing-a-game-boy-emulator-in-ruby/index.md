@@ -10,14 +10,26 @@ I created a Game Boy emulator in Ruby and released it as a gem called rubyboy!
 
 {{< github-repo-card "https://github.com/sacckey/rubyboy" >}}
 
+And now it runs in the browser using WebAssembly!
+
+**[Try the demo in your browser!](https://sacckey.github.io/rubyboy/)**
+
+### Screenshots
+
 |![](https://raw.githubusercontent.com/sacckey/rubyboy/main/resource/screenshots/pokemon.png)|![](https://raw.githubusercontent.com/sacckey/rubyboy/main/resource/screenshots/puyopuyo.png)|
 |---|---|
 
 <blockquote data-align="center" class="twitter-tweet" data-media-max-width="560"><p lang="ja" dir="ltr">Rubyでゲームボーイのエミュレータを作りました！<br>カラー対応やWasmでブラウザ対応もやっていきたい💪<br><br>GitHub: <a href="https://t.co/hFwmZD6FNp">https://t.co/hFwmZD6FNp</a> <a href="https://t.co/qWbx8v4mef">pic.twitter.com/qWbx8v4mef</a></p>&mdash; sacckey (@sacckey) <a href="https://twitter.com/sacckey/status/1769334370102587629?ref_src=twsrc%5Etfw">March 17, 2024</a></blockquote> <script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
 
+<p align="center">
+ <img src="https://storage.googleapis.com/zenn-user-upload/04b2e5fb8827-20250115.png" width="500">
+</p>
+
 ## This Article
 While explaining the implementation process of Ruby Boy, I'll introduce the points where I got stuck and the techniques I devised.
 I'll also introduce what I did to optimize Ruby Boy.
+
+Finally, I'll show how Ruby Boy works in the browser using WebAssembly.
 
 ## Why I Created a Game Boy Emulator
 - I wanted to do some personal development, but since web services incur maintenance costs, I wanted to create something that could be maintained for free
