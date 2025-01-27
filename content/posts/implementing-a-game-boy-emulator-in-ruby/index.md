@@ -729,10 +729,10 @@ this.vm = vm;
 this.rootDir = wasi.fds[3].dir;
 ```
 
-Inside the Worker, we create a VM by passing rubyboy.wasm to the DefaultRubyVM method. Ruby Boy code runs on this VM.
+Inside the Worker, creating a VM by passing rubyboy.wasm to the DefaultRubyVM method. Ruby Boy code runs on this VM.
 
 `wasi.fds[3].dir` is a Map that represents the root directory [preopened](https://github.com/ruby/ruby.wasm/blob/main/packages/npm-packages/ruby-wasm-wasi/src/browser.ts#L25) by DefaultRubyVM.
-We use this Map to send ROM data to the VM and receive frame data from the VM.
+Sending ROM data to the VM and receiving frame data from the VM through this Map.
 
 #### Drawing the Game Screen
 ```js:worker.js
